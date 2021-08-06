@@ -38,6 +38,12 @@ After the following commands you will see the following services initialized:
 ```
 
 ## Considerations
+### Resources
+- DynamoDB - Pay for what you use. Good for unpredictable application traffic.
+- API Gateway  -With an API Requests price as low as $0.90 per million requests at the highest tier, you can decrease your costs as your API usage increases per region across your AWS accounts.
+- Lambda - First 1 million requests are free.
+- S3 - Pay for what you use. First 50 TB / Month	$0.023 per GB
+
 ### Costs
 - DynamoDB - Pay for what you use. Good for unpredictable application traffic.
 - API Gateway  -With an API Requests price as low as $0.90 per million requests at the highest tier, you can decrease your costs as your API usage increases per region across your AWS accounts.
