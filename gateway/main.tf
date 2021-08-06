@@ -39,7 +39,7 @@ resource "aws_apigatewayv2_vpc_link" "link" {
   subnet_ids         = var.subnets.*.id
 
   tags = {
-    Usage = "example"
+    Usage = "vpc_link"
   }
 }
 
@@ -60,7 +60,7 @@ resource "aws_apigatewayv2_authorizer" "put_authorizer" {
 }
 
 resource "aws_service_discovery_private_dns_namespace" "namespace" {
-  name        = "service"
+  name        = "namespace"
   vpc         = var.vpc_id
 }
 
@@ -83,6 +83,7 @@ resource "aws_service_discovery_service" "service" {
   }
 }
 
+// used for the service registry for ECS
 output "service_arn" {
   value = aws_service_discovery_service.service.arn
 }

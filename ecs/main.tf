@@ -20,7 +20,7 @@ resource "aws_ecs_service" "service" {
   launch_type                        = "FARGATE"
   scheduling_strategy                = "REPLICA"
   service_registries {
-    registry_arn = var.registry_arn
+    registry_arn = var.registry_arn // This is what helps connect Cloud Map to ECS
     port = 8080
   }
 }
@@ -34,7 +34,7 @@ resource "aws_ecs_task_definition" "task" {
       environment = [
         {
           name = "DynamoDBTable"
-          value = var.aws_dynamodb_table_name
+          value = var.aws_dynamodb_table_name // We pass the DynamoDB table name as an environment variable so the code saves it appropriately
         }
       ]
       portMappings = [{
@@ -49,7 +49,7 @@ resource "aws_ecs_task_definition" "task" {
   memory    = 512
   requires_compatibilities = ["FARGATE"]
   network_mode = "awsvpc"
-  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn // Makes sure ECS instances can connect to DynamoDB Table
 }
 
 

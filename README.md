@@ -1,5 +1,5 @@
-# Interest Rate Terraform
-Configuration in this directory creates a set of resources for a user uploading interest rates to an S3 and persisting those rates to a datastore.
+# ECS Api Gateway Terraform
+Configuration in this directory creates a set of resources for a user to fetch pets to a datastore.
 
 ## Installation
 Must have AWS CLI Configured
