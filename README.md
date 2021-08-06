@@ -11,7 +11,7 @@ terraform destroy
 ```
 
 ## Workflow
-![Workflow Diagram](ECS Api Gateway.png)
+![Workflow Diagram](https://github.com/sfidahussain/mini-app-terraform/blob/main/ECS%20Api%20Gateway.png)
 
 
 ## Endpoints
