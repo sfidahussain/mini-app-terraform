@@ -38,6 +38,10 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 }
 
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+}
+
 resource "aws_subnet" "private_subnet_2" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.101.0/24"
@@ -67,6 +71,81 @@ resource "aws_subnet" "private_subnet_1" {
   }
 }
 
+resource "aws_nat_gateway" "nat_1" {
+  allocation_id = aws_eip.eip_1.id
+  subnet_id     = aws_subnet.public_subnet_1.id
+  depends_on    = [aws_internet_gateway.main]
+}
+
+resource "aws_nat_gateway" "nat_2" {
+  allocation_id = aws_eip.eip_2.id
+  subnet_id     = aws_subnet.public_subnet_2.id
+  depends_on    = [aws_internet_gateway.main]
+}
+
+resource "aws_nat_gateway" "nat_3" {
+  allocation_id = aws_eip.eip_3.id
+  subnet_id     = aws_subnet.public_subnet_3.id
+  depends_on    = [aws_internet_gateway.main]
+}
+
+resource "aws_route_table" "route_table_private_1" {
+  vpc_id = aws_vpc.main.id
+}
+
+resource "aws_route_table" "route_table_private_2" {
+  vpc_id = aws_vpc.main.id
+}
+
+resource "aws_route_table" "route_table_private_3" {
+  vpc_id = aws_vpc.main.id
+}
+
+resource "aws_route" "route_private_1" {
+  route_table_id         = aws_route_table.route_table_private_1.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.nat_1.id
+}
+
+resource "aws_route" "route_private_2" {
+  route_table_id         = aws_route_table.route_table_private_2.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.nat_2.id
+}
+
+resource "aws_route" "route_private_3" {
+  route_table_id         = aws_route_table.route_table_private_3.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.nat_3.id
+}
+
+resource "aws_route_table_association" "route_table_association_private_1" {
+  subnet_id      = aws_subnet.private_subnet_1.id
+  route_table_id = aws_route_table.route_table_private_1.id
+}
+
+resource "aws_route_table_association" "route_table_association_private_2" {
+  subnet_id      = aws_subnet.private_subnet_2.id
+  route_table_id = aws_route_table.route_table_private_2.id
+}
+
+resource "aws_route_table_association" "route_table_association_private_3" {
+  subnet_id      = aws_subnet.private_subnet_3.id
+  route_table_id = aws_route_table.route_table_private_3.id
+}
+
+resource "aws_eip" "eip_1" {
+  vpc = true
+}
+
+resource "aws_eip" "eip_2" {
+  vpc = true
+}
+
+resource "aws_eip" "eip_3" {
+  vpc = true
+}
+
 resource "aws_subnet" "public_subnet_2" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.1.0/24"
@@ -74,6 +153,8 @@ resource "aws_subnet" "public_subnet_2" {
   tags = {
     Name = "Public Subnet 2"
   }
+  map_public_ip_on_launch = true
+
 }
 
 resource "aws_subnet" "public_subnet_3" {
@@ -84,6 +165,8 @@ resource "aws_subnet" "public_subnet_3" {
   tags = {
     Name = "Public Subnet 3"
   }
+  map_public_ip_on_launch = true
+
 }
 
 resource "aws_subnet" "public_subnet_1" {
@@ -94,6 +177,33 @@ resource "aws_subnet" "public_subnet_1" {
   tags = {
     Name = "Public Subnet 1"
   }
+  map_public_ip_on_launch = true
+
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+}
+
+resource "aws_route" "public" {
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.main.id
+}
+
+resource "aws_route_table_association" "public_1" {
+  subnet_id      = aws_subnet.public_subnet_1.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "public_2" {
+  subnet_id      = aws_subnet.public_subnet_2.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "public_3" {
+  subnet_id      = aws_subnet.public_subnet_3.id
+  route_table_id = aws_route_table.public.id
 }
 
 resource "aws_apigatewayv2_vpc_link" "link" {
@@ -187,6 +297,8 @@ resource "aws_ecs_service" "service" {
     security_groups = [aws_security_group.allow_fargate.id]
     assign_public_ip = false
   }
+  launch_type                        = "FARGATE"
+  scheduling_strategy                = "REPLICA"
 //  iam_role        = aws_iam_role.ecs-role.arn
 //  depends_on      = [aws_iam_role_policy.ecs-service]
 }
@@ -264,6 +376,53 @@ resource "aws_ecs_task_definition" "task" {
   memory    = 512
   requires_compatibilities = ["FARGATE"]
   network_mode = "awsvpc"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+}
+
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "ecsTaskExecutionRole"
+
+  assume_role_policy = <<EOF
+{
+ "Version": "2012-10-17",
+ "Statement": [
+   {
+     "Action": "sts:AssumeRole",
+     "Principal": {
+       "Service": "ecs-tasks.amazonaws.com"
+     },
+     "Effect": "Allow",
+     "Sid": ""
+   }
+ ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role" "ecs_task_role" {
+  name = "ecsTaskRole"
+
+  assume_role_policy = <<EOF
+{
+ "Version": "2012-10-17",
+ "Statement": [
+   {
+     "Action": "sts:AssumeRole",
+     "Principal": {
+       "Service": "ecs-tasks.amazonaws.com"
+     },
+     "Effect": "Allow",
+     "Sid": ""
+   }
+ ]
+}
+EOF
 }
 
 resource "aws_dynamodb_table" "dynamodb-petstore-table" {
