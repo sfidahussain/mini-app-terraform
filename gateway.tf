@@ -446,6 +446,36 @@ resource "aws_iam_role" "ecs_task_role" {
 EOF
 }
 
+resource "aws_iam_role_policy" "ecs-task-role-policy" {
+  name = "ecs-dynamo"
+  role = aws_iam_role.ecs_task_role.id
+
+  # Terraform's "jsonencode" function converts a
+  # Terraform expression result to valid JSON syntax.
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "dynamodb:BatchGet*",
+          "dynamodb:DescribeStream",
+          "dynamodb:DescribeTable",
+          "dynamodb:Get*",
+          "dynamodb:Query",
+          "dynamodb:Scan",
+          "dynamodb:BatchWrite*",
+          "dynamodb:CreateTable",
+          "dynamodb:Delete*",
+          "dynamodb:Update*",
+          "dynamodb:PutItem",
+        ]
+        Effect   = "Allow"
+        Resource = aws_dynamodb_table.dynamodb-petstore-table.arn
+      },
+    ]
+  })
+}
+
 resource "aws_dynamodb_table" "dynamodb-petstore-table" {
   name           = "dynamoDB-Petstore"
   hash_key         = "petId"
