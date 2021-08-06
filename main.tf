@@ -61,7 +61,7 @@ module "gateway" {
 module "ecs" {
   source             = "./ecs"
   security_groups = [module.security_groups.allow_fargate]
-  subnets             = module.vpc.public_subnets
+  subnets             = module.vpc.private_subnets
   aws_dynamodb_table_arn = aws_dynamodb_table.dynamodb-petstore-table.arn
   aws_dynamodb_table_name = aws_dynamodb_table.dynamodb-petstore-table.name
   registry_arn =   module.gateway.service_arn

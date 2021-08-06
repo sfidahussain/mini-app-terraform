@@ -61,6 +61,11 @@ resource "aws_eip" "eip" {
   }
 }
 
+resource "aws_vpc_endpoint" "dynamo" {
+  vpc_id       = aws_vpc.main.id
+  service_name = "com.amazonaws.us-east-1.dynamodb"
+}
+
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
@@ -68,12 +73,6 @@ resource "aws_route_table" "public" {
     Name        = "${var.name}-routing-table-public"
     Environment = var.environment
   }
-}
-
-resource "aws_route" "public" {
-  route_table_id         = aws_route_table.public.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.main.id
 }
 
 resource "aws_route_table" "private" {
@@ -91,12 +90,14 @@ resource "aws_route" "private" {
   route_table_id         = element(aws_route_table.private.*.id, count.index)
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = element(aws_nat_gateway.nat.*.id, count.index)
+  depends_on = [aws_route_table.private]
 }
 
-resource "aws_route_table_association" "private" {
-  count          = length(var.private_subnets)
-  subnet_id      = element(aws_subnet.private.*.id, count.index)
-  route_table_id = element(aws_route_table.private.*.id, count.index)
+resource "aws_route" "public" {
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.main.id
+  depends_on = [aws_route_table.public]
 }
 
 resource "aws_route_table_association" "public" {
@@ -105,9 +106,10 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_vpc_endpoint" "dynamo" {
-  vpc_id       = aws_vpc.main.id
-  service_name = "com.amazonaws.us-east-1.dynamodb"
+resource "aws_route_table_association" "private" {
+  count          = length(var.private_subnets)
+  subnet_id      = element(aws_subnet.private.*.id, count.index)
+  route_table_id = element(aws_route_table.private.*.id, count.index)
 }
 
 resource "aws_vpc_endpoint_route_table_association" "endpoint_association" {
