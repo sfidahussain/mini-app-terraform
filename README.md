@@ -19,55 +19,52 @@ After the following commands you will see the following services initialized:
 
 | URL | Sample Input | 
 | --- | ------------ | 
-| API Gateway -> GET /all  | Test this in API Gateway to see a list of all uploaded rates. (Only need to click test, no parameters needed) | 
-| API Gateway -> GET /rate | Run this in API Gateway to see the latest upload rate. (Only need to click test, no parameters needed) | 
-| API Gateway -> POST /rate | Run this in API Gateway to get a record with a specified timestamp. Use this as a reference to put in the Request Body `{"timestamp":"2019-03-29"}` |
-| S3 Bucket | Upload .json with content like this and make sure to set this to publicly available: (This is also in the repo as reference as transaction.json) 
-<img width="673" alt="Screen Shot 2021-03-22 at 10 51 58 PM" src="https://user-images.githubusercontent.com/6472383/112097339-d2d80280-8b6d-11eb-882a-f0648a4d8e33.png">
+| API Gateway -> GET /petstore/pets/{petId} | Use the Invoke Url in API Gateway or can run requests with Postman. | 
+| API Gateway -> POST /petstore/pets/{petId} | Use the Invoke Url in API Gateway or can run requests with Postman. Use this as a reference to put in the Request Body |
 
 ```json
 {
-    "transactions": [
-        {
-            "value": "0.3",
-            "type": "Simple",
-            "timestamp": "2019-03-29"
-        }
-    ]
+  "name": "Spot"
 }
 ```
 
 ## Considerations
 ### Resources
-- DynamoDB - Pay for what you use. Good for unpredictable application traffic.
-- API Gateway  -With an API Requests price as low as $0.90 per million requests at the highest tier, you can decrease your costs as your API usage increases per region across your AWS accounts.
-- Lambda - First 1 million requests are free.
-- S3 - Pay for what you use. First 50 TB / Month	$0.023 per GB
+- VPC - defaults to 1 Public and 1 Private Subnet
+- Internet Gateway for VPN to access Internet
+- NAT Gateway for Private Subnet to Fetch Docker Image
+- Security Group that Allows Access to ECS Containers
+- ECS Cluster with a Service and Task Definition to Run Docker Containers
+- DynamoDB Table that will store Pet Information
+- API Gateway that will expose containerized services to the user. Composed of a route with a path "/petstore/pets/{petId}", and integration is done with a VPC link to AWS Cloud Map which points to the ECS Services. API Gateway uses that link in order to connect to them privately, that way ECS can be launched in a private subnet. Also API Gateway is the one that does authorization so that way it doesn't need to be done in the code itself.
+- AWS CloudMap provides service discovery. API Gateway uses Cloud Map for the physical address of the ECS containers. This is also enabled on the ECS side for service discovery.
+- Cognito (User Pools) for User Authentication. Once user is granted access, a JWT Access Token is used for authorizing requests. In this case, only the POST is authorized.
 
 ### Costs
 - DynamoDB - Pay for what you use. Good for unpredictable application traffic.
 - API Gateway  -With an API Requests price as low as $0.90 per million requests at the highest tier, you can decrease your costs as your API usage increases per region across your AWS accounts.
-- Lambda - First 1 million requests are free.
-- S3 - Pay for what you use. First 50 TB / Month	$0.023 per GB
+- ECS - Pay for what you use.
+- CloudMap - $0.10 per registered resource (for example, an EC2 instance) per month*
+* All the resources registered via Amazon ECS Service Discovery are free, and you pay for lookup queries and associated DNS charges only.
 
-### Efficiency
-- Execution context is a temporary runtime environment that initializes any external dependencies of your Lambda function code, like database connections. This would help ensure lambda would maintain the execution context for some time in anticipation of another.
-- Could also implement Transfer Acceleration to help faster upload to S3.
+### API Gateway vs Application Load Balancer
+- Authentication and Authorization (Token-Based Authorization)
+- If replaced with ALB, can save more money.
+
 
 ### Monitoring and Logging
-- Currently there is monitoring implemented by default in the four lambda functions deployed. They show invocations, duration, and error count.
+- Currently, there is default monitoring for ECS.
 - For the DynamoDB Table, there is a way to add logging via CloudTrail with any DynamoDB operation.
-- For the S3 Bucket, there is also an option to log s3 api calls with cloudtrail.
 - Overall though that is per each service. To handle it on a more global scale, I would look to AWS Config.
 
 ### Authorization and Authentication
 - Use security groups and ensuring correct roles per service with resource policies.
-- Amazon Cognito user pools let you create customizable authentication and authorization solutions for your REST APIs. Amazon Cognito user pools are used to control who can invoke REST API methods. 
+- Amazon Cognito user pools let you create customizable authentication and authorization solutions for your APIs. Amazon Cognito user pools are used to control who can invoke the methods you choose. In this architecture, I have my GET available to everyone, but the PUT is what has authorization.
 
 ### Scalability and Availability
 Lambda, API Gateway, and S3 are built in to be scalable.
 
 - DynamoDB - I would enable multi-region replication with global tables. In addition, if one of the AWS Regions were to become temporarily unavailable, your customers could still access the same  data in the other Regions. It is spread across 3 geographically distinct data centers. If it was to be scaled, I would switch to use a Postgres DB rather than a DynamoDB database. 
-- S3 - It wouldn't be a huge problem since it's designed to have 99.9% availability. It's a regional service. AWS automatically uses the available AZs in that region to keep the data available and safeguarded
-- Lambda - Lambda runs your function in multiple Availability Zones to ensure that it is available to process events in case of a service interruption in a single zone.
+- ECS - I purposely used Fargate so that the containers are launched on the Fargate serverless compute engine, and you don't have to provision or manage any ECS2 instances. Could also enable auto scaling.
+- CloudMap - has Health checks to ensure all the tasks are healthy
 - API Gateway - Can throttle requests to prevent attacks
