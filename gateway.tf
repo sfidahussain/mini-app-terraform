@@ -5,7 +5,7 @@ resource "aws_apigatewayv2_api" "petstore_api" {
 
 resource "aws_apigatewayv2_stage" "petstore_stage" {
   api_id = aws_apigatewayv2_api.petstore_api.id
-  name   = "test"
+  name   = "$default"
   auto_deploy = true
 }
 
@@ -29,6 +29,7 @@ resource "aws_apigatewayv2_route" "put" {
   api_id    = aws_apigatewayv2_api.petstore_api.id
   route_key = "PUT /petstore/pets/{petId}"
   target = "integrations/${aws_apigatewayv2_integration.integration.id}"
+  authorization_type = "JWT"
   authorizer_id = aws_apigatewayv2_authorizer.put_authorizer.id
 }
 
@@ -107,6 +108,7 @@ resource "aws_route" "route_private_1" {
   nat_gateway_id         = aws_nat_gateway.nat_1.id
 }
 
+
 resource "aws_route" "route_private_2" {
   route_table_id         = aws_route_table.route_table_private_2.id
   destination_cidr_block = "0.0.0.0/0"
@@ -124,14 +126,29 @@ resource "aws_route_table_association" "route_table_association_private_1" {
   route_table_id = aws_route_table.route_table_private_1.id
 }
 
+resource "aws_vpc_endpoint_route_table_association" "endpoint_association_private_1" {
+  route_table_id = aws_route_table.route_table_private_1.id
+  vpc_endpoint_id = aws_vpc_endpoint.dynamo.id
+}
+
 resource "aws_route_table_association" "route_table_association_private_2" {
   subnet_id      = aws_subnet.private_subnet_2.id
   route_table_id = aws_route_table.route_table_private_2.id
 }
 
+resource "aws_vpc_endpoint_route_table_association" "endpoint_association_private_2" {
+  route_table_id = aws_route_table.route_table_private_2.id
+  vpc_endpoint_id = aws_vpc_endpoint.dynamo.id
+}
+
 resource "aws_route_table_association" "route_table_association_private_3" {
   subnet_id      = aws_subnet.private_subnet_3.id
   route_table_id = aws_route_table.route_table_private_3.id
+}
+
+resource "aws_vpc_endpoint_route_table_association" "endpoint_association_private_3" {
+  route_table_id = aws_route_table.route_table_private_3.id
+  vpc_endpoint_id = aws_vpc_endpoint.dynamo.id
 }
 
 resource "aws_eip" "eip_1" {
@@ -248,9 +265,9 @@ resource "aws_security_group" "allow_fargate" {
   ingress = [
     {
       description      = "TLS from VPC"
-      from_port        = 0
-      to_port          = 0
-      protocol         = -1
+      from_port        = 8080
+      to_port          = 8080
+      protocol         = "tcp"
       self             = true
       cidr_blocks      = []
       ipv6_cidr_blocks = []
@@ -299,6 +316,10 @@ resource "aws_ecs_service" "service" {
   }
   launch_type                        = "FARGATE"
   scheduling_strategy                = "REPLICA"
+  service_registries {
+    registry_arn = aws_service_discovery_service.service.arn
+    port = 8080
+  }
 //  iam_role        = aws_iam_role.ecs-role.arn
 //  depends_on      = [aws_iam_role_policy.ecs-service]
 }
@@ -460,4 +481,9 @@ resource "aws_apigatewayv2_authorizer" "put_authorizer" {
     audience = ["example"]
     issuer   = "https://${aws_cognito_user_pool.pool.endpoint}"
   }
+}
+
+resource "aws_vpc_endpoint" "dynamo" {
+  vpc_id       = aws_vpc.main.id
+  service_name = "com.amazonaws.us-east-1.dynamodb"
 }
