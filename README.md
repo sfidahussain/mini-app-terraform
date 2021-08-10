@@ -1,6 +1,12 @@
 # ECS Api Gateway Terraform
 Configuration in this directory creates a set of resources for a user to fetch pets to a datastore.
 
+To run these endpoints through a FE, click on this URL:
+http://amplifyauth-20210809222040-hostingbucket-dev.s3-website-us-east-1.amazonaws.com/
+
+MAKE SURE TO RUN THIS WITH CORS DISABLED. 
+1. Change the name of the pet and then refresh the page to see it display the updated name.
+
 ## Installation
 Must have AWS CLI Configured
 
